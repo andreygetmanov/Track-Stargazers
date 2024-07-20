@@ -1,10 +1,12 @@
+import os
 import urllib.request
 import requests
 from bs4 import BeautifulSoup
 import json
 import threading
 from geopy.geocoders import Nominatim
-
+import time
+from dotenv import load_dotenv
 
 class StarThread(threading.Thread):
     """
@@ -38,18 +40,20 @@ def scrape_stargazers(url):
     page_count = 1
     stargazers = []
     
-    while page_count > 0:
+    while 0 < page_count < 101:
         url_ = url.format(page_count)
         r = urllib.request.urlopen(url_).read()
         soup = BeautifulSoup(r, "lxml")
-        follow = soup.find_all("h3", class_="h4 mb-1")
+        # follow = soup.find_all("h2", class_="h4 mb-1")
+        follow = [a.text for a in soup.find_all('a', {'data-hovercard-type': 'user'}) if a.text.strip()]
         if follow:
             for human in follow:
-                h = human.a['href'].split("/")[1]
-                stargazers.append(h)
+                # h = human.a['href'].split("/")[1]
+                stargazers.append(human)
             page_count += 1
         else:
             page_count = -1
+    time.sleep(0.1)
     return stargazers
 
 
@@ -61,7 +65,7 @@ def get_user_profile(user_name):
     """
     url_ = "https://api.github.com/users/{}".format(user_name)
     headers = {
-        'Authorization': f'token {"YOUR TOKEN"}',
+        'Authorization': f'token {github_api}',
         'Accept': 'application/vnd.github.v3+json',
     }
     r = requests.get(url_, headers=headers)
@@ -174,7 +178,7 @@ def store_in_json(stargazers, data_file, use_api):
                     with open('jsons/{}.json'.format(data_file), 'w') as outfile:
                         json.dump(data, outfile, indent=4)
 
-                    print("Added user from " + user_country)
+                    print(f"Added user {user} from {user_country}")
 
                     outfile.close()
                 except:
@@ -212,16 +216,18 @@ if __name__ == "__main__":
     If use api is set to 1 then it will use GitHub's official API
     to get the user data, else it will use the scraper.
     """
-    import sys
-    url = str(sys.argv[1])
-    number_of_threads = int(sys.argv[2])
-    use_api = int(sys.argv[3])
-    read_from_stargazer_json = int(sys.argv[4])
+    load_dotenv()
+    github_api = os.getenv('GITHUB_API_KEY')
+    # url = str(sys.argv[1])
+    url = 'https://github.com/facebookresearch/faiss'
+    number_of_threads = 1
+    use_api = 1
+    read_from_stargazer_json = 0
 
     star = "/stargazers?page={}"
 
     if read_from_stargazer_json:
-        with open("stargazers.json", "r") as stargazers_file:
+        with open("users_with_location_not_found.json", "r") as stargazers_file:
             stargazers = json.load(stargazers_file)
         stargazers_file.close()
     
